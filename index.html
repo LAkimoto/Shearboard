@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自用剪贴板</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #333;
+      font-size: 32px;
+      margin: 0;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor {
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      resize: none;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      min-height: 500px;
+    }
+
+    .preview {
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      padding: 10px;
+      font-size: 16px;
+      min-height: 100px;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #3e8e41;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>便捷剪贴板</h1>
+    </header>
+    <main>
+      <div class="editor" contenteditable="true"></div>
+      <div class="buttons">
+        <button id="copyBtn">复制</button>
+        <button id="clearBtn">清除</button>
+        <button id="pasteBtn">上传</button>
+      </div>
+    </main>
+  </div>
+  <script>
+    // 复制按钮点击事件处理函数
+document.getElementById("copyBtn").addEventListener("click", function() {
+  var range = document.createRange();
+  range.selectNodeContents(document.getElementsByClassName("editor")[0]);
+  var selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  document.execCommand("copy");
+  alert("已复制到剪贴板");
+  selection.removeAllRanges();
+});
+    // 清除按钮点击事件处理函数
+    document.getElementById("clearBtn").addEventListener("click", function() {
+      document.getElementsByClassName("editor")[0].innerHTML = "";
+      document.getElementsByClassName("preview")[0].innerHTML = "";
+    });
+
+    // 上传按钮点击事件处理函数
+    document.getElementById("pasteBtn").addEventListener("click", function() {
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "up.php", true);
+      xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          alert("上传成功");
+        }
+      };
+      xhr.send(JSON.stringify({
+        content: document.getElementsByClassName("editor")[0].innerHTML,
+        timestamp: new Date().toISOString()
+      }));
+    });
+
+  
+    window.onload = function() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "up.php", true);
+    xhr.onreadystatechange = function() {
+    if (xhr.readyState == 4 && xhr.status == 200) {
+      var response = JSON.parse(xhr.responseText);
+      document.getElementsByClassName("editor")[0].innerHTML = response.content;
+     }
+     };
+     xhr.send();
+    };
+  </script>
+</body>
+</html>
