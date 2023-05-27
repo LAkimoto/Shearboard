@@ -14,20 +14,28 @@
       background-color: #f2f2f2;
       margin: 0;
       padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
 
     .container {
-      max-width: 600px;
-      margin: 0 auto;
+      width: 900px;
       padding: 20px;
       background-color: #fff;
       border-radius: 5px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
 
     header {
       text-align: center;
       margin-bottom: 20px;
+      flex: 0 0 100%;
     }
 
     h1 {
@@ -38,7 +46,11 @@
 
     main {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      margin-bottom: 20px;
     }
 
     .editor {
@@ -47,8 +59,9 @@
       resize: none;
       padding: 10px;
       font-size: 16px;
-      margin-bottom: 20px;
+      margin-right: 20px;
       min-height: 500px;
+      flex: 1;
     }
 
     .preview {
@@ -56,13 +69,14 @@
       border-radius: 5px;
       padding: 10px;
       font-size: 16px;
-      min-height: 100px;
+      min-height: 500px;
+      flex: 1;
+      overflow-y: auto;
     }
 
     .buttons {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 20px;
+      justify-content: center;
     }
 
     button {
@@ -74,6 +88,7 @@
       padding: 10px 20px;
       cursor: pointer;
       transition: all 0.3s ease;
+      margin: 0 10px;
     }
 
     button:hover {
@@ -87,59 +102,87 @@
       <h1>便捷剪贴板</h1>
     </header>
     <main>
-      <div class="editor" contenteditable="true"></div>
-      <div class="buttons">
-        <button id="copyBtn">复制</button>
-        <button id="clearBtn">清除</button>
-        <button id="pasteBtn">上传</button>
-      </div>
+      <textarea class="editor"></textarea>
+      <div class="preview"></div>
     </main>
+    <div class="buttons">
+      <button id="copyBtn">复制</button>
+      <button id="clearBtn">清除</button>
+    </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/showdown@latest"></script>
   <script>
-    // 复制按钮点击事件处理函数
-document.getElementById("copyBtn").addEventListener("click", function() {
-  var range = document.createRange();
-  range.selectNodeContents(document.getElementsByClassName("editor")[0]);
-  var selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
-  document.execCommand("copy");
-  alert("已复制到剪贴板");
-  selection.removeAllRanges();
-});
-    // 清除按钮点击事件处理函数
-    document.getElementById("clearBtn").addEventListener("click", function() {
-      document.getElementsByClassName("editor")[0].innerHTML = "";
-      document.getElementsByClassName("preview")[0].innerHTML = "";
-    });
+    var editor = document.querySelector('.editor');
+    var preview = document.querySelector('.preview');
+    var converter = new showdown.Converter();
 
-    // 上传按钮点击事件处理函数
-    document.getElementById("pasteBtn").addEventListener("click", function() {
+    // Initialize a timer variable
+    var syncTimer;
+
+    // Function to handle content synchronization
+    function syncContent() {
+      var markdownText = editor.value;
+
+      // Make the AJAX request to upload the content
       var xhr = new XMLHttpRequest();
       xhr.open("POST", "up.php", true);
-      xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
       xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          alert("上传成功");
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          // Handle the response if needed
         }
       };
-      xhr.send(JSON.stringify({
-        content: document.getElementsByClassName("editor")[0].innerHTML,
-        timestamp: new Date().toISOString()
-      }));
+      xhr.send("content=" + encodeURIComponent(markdownText));
+    }
+
+    // Function to update the preview and initiate synchronization
+    function updatePreview() {
+      var markdownText = editor.value;
+      var htmlText = converter.makeHtml(markdownText);
+      preview.innerHTML = htmlText;
+
+      // Clear the previous timer
+      clearTimeout(syncTimer);
+
+      // Set a new timer to synchronize content after 0.5 seconds
+      syncTimer = setTimeout(syncContent, 500);
+    }
+
+    // Initialize the preview area and start synchronization
+    updatePreview();
+
+    // Event listener for input changes with debouncing
+    editor.addEventListener("input", function() {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(updatePreview, 500);
     });
 
-  
+    // 复制按钮点击事件处理函数
+    document.getElementById("copyBtn").addEventListener("click", function() {
+      editor.select();
+      document.execCommand("copy");
+      alert("已复制到剪贴板");
+    });
+
+    // 清除按钮点击事件处理函数
+    document.getElementById("clearBtn").addEventListener("click", function() {
+      editor.value = "";
+      updatePreview();
+    });
+
+    // 在页面加载时，从服务器获取以前保存的 Markdown 格式的文本，并将其显示在编辑器中
     window.onload = function() {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "up.php", true);
-    xhr.onreadystatechange = function() {
-    if (xhr.readyState == 4 && xhr.status == 200) {
-      var response = JSON.parse(xhr.responseText);
-      document.getElementsByClassName("editor")[0].innerHTML = response.content;
-     }
-     };
-     xhr.send();
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "up.php", true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          var response = JSON.parse(xhr.responseText);
+          var markdownText = response.content;
+          editor.value = markdownText;
+          updatePreview();
+        }
+      };
+      xhr.send();
     };
   </script>
 </body>
